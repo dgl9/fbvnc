@@ -58,26 +58,34 @@ static char buf[MAXRES];
 
 static int vnc_connect(char *addr, char *port)
 {
-	struct addrinfo hints, *addrinfo;
-	int fd;
+    struct addrinfo hints, *addrinfo;
+    int fd;
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
 
-	if (getaddrinfo(addr, port, &hints, &addrinfo))
-		return -1;
-	fd = socket(addrinfo->ai_family, addrinfo->ai_socktype,
-			addrinfo->ai_protocol);
+    int gai_result;
+    if ((gai_result = getaddrinfo(addr, port, &hints, &addrinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(gai_result));
+        return -1;
+    }
+    
+    if ((fd = socket(addrinfo->ai_family, addrinfo->ai_socktype, addrinfo->ai_protocol)) == -1) {
+        perror("socket");
+        freeaddrinfo(addrinfo);
+        return -1;
+    }
 
-	if (connect(fd, addrinfo->ai_addr, addrinfo->ai_addrlen) == -1) {
-		close(fd);
-		freeaddrinfo(addrinfo);
-		return -1;
-	}
-	freeaddrinfo(addrinfo);
-	return fd;
+    if (connect(fd, addrinfo->ai_addr, addrinfo->ai_addrlen) == -1) {
+        perror("connect");
+        close(fd);
+        freeaddrinfo(addrinfo);
+        return -1;
+    }
+    freeaddrinfo(addrinfo);
+    return fd;
 }
 
 static void fbmode_bits(int *rr, int *rg, int *rb)
